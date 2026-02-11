@@ -3,6 +3,7 @@ package pharmacie.entity;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -34,5 +35,9 @@ public class Categorie {
 	// pour éviter la boucle infinie si on convertit la catégorie en JSON
 	@JsonIgnoreProperties({"categorie", "lignes"})
 	private List<Medicament> medicaments = new LinkedList<>();
+
+	@ManyToMany(mappedBy = "categories", cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<Fournisseur> fournisseurs = new LinkedList<>();
 
 }
