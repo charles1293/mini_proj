@@ -171,12 +171,12 @@ INSERT INTO COMMANDE (NUMERO, SAISIELE, ENVOYEELE, DISPENSAIRE_CODE, PORT, REMIS
 (8, '2024-04-05', '2024-04-08', 'DSP08', 30.00, 7.00, 'Dispensaire Tambacounda', '23 Avenue Demba Diop', '23000', 'Tambacounda', 'Tambacounda', 'Sénégal');
 ALTER TABLE Commande ALTER COLUMN numero RESTART WITH 9;
 
-INSERT INTO FOURNISSEUR (NOM, EMAIL) VALUES
-('PharmaPlus', 'contact@gmail.com'),
-('MedSupply', 'contact@gmail.com'),
-('Sénégal Pharma', 'contact@gmail.com'),
-('HealthPro', 'contact@gmail.com'),
-('Optimum Santé', 'contact@gmail.com');
+INSERT INTO FOURNISSEUR (ID, NOM, EMAIL) VALUES
+('1', 'PharmaPlus', 'contact@gmail.com'),
+('2', 'MedSupply', 'contact@gmail.com'),
+('3', 'Sénégal Pharma', 'contact@gmail.com'),
+('4', 'HealthPro', 'contact@gmail.com'),
+('5', 'Optimum Santé', 'contact@gmail.com');
 
 -- Insertion des lignes de commande
 INSERT INTO LIGNE (COMMANDE_NUMERO, MEDICAMENT_REFERENCE, QUANTITE) VALUES

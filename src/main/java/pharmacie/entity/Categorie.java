@@ -36,7 +36,7 @@ public class Categorie {
 	@JsonIgnoreProperties({"categorie", "lignes"})
 	private List<Medicament> medicaments = new LinkedList<>();
 
-	@ManyToMany(mappedBy = "categories", cascade = CascadeType.ALL)
+	@ManyToMany (cascade = CascadeType.ALL)
     @JsonIgnore
     private List<Fournisseur> fournisseurs = new LinkedList<>();
 
