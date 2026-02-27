@@ -28,14 +28,18 @@ public class CommandeService {
     private final DispensaireRepository dispensaireDao;
     private final LigneRepository ligneDao;
     private final MedicamentRepository medicamentDao;
+    private final NotificationService notificationService;
 
     // @Autowired
     // Spring initialisera automatiquement ces paramètres
-    public CommandeService(CommandeRepository commandeDao, DispensaireRepository dispensaireDao, LigneRepository ligneDao, MedicamentRepository medicamentDao) {
+    public CommandeService(CommandeRepository commandeDao, DispensaireRepository dispensaireDao,
+                           LigneRepository ligneDao, MedicamentRepository medicamentDao,
+                           NotificationService notificationService) {
         this.commandeDao = commandeDao;
         this.dispensaireDao = dispensaireDao;
         this.ligneDao = ligneDao;
         this.medicamentDao = medicamentDao;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -194,6 +198,9 @@ public class CommandeService {
             medicament.setUnitesEnStock(medicament.getUnitesEnStock() - ligne.getQuantite());
             // Les médicaments de la commande ne sont plus "en commande"
             medicament.setUnitesCommandees(medicament.getUnitesCommandees() - ligne.getQuantite());
+            // Vérifier si le médicament a atteint son niveau de réapprovisionnement
+            // et notifier les fournisseurs concernés par email (via SendGrid)
+            notificationService.verifierEtNotifierReappro(medicament);
         });
         return commande;
     }

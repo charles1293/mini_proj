@@ -5,6 +5,7 @@ import org.h2.tools.Server;
 import org.modelmapper.ModelMapper;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.*;
@@ -24,6 +25,7 @@ public class WebApp {
     }
 
     @Bean(initMethod = "start", destroyMethod = "stop")
+    @ConditionalOnProperty(name = "h2.tcp.enabled", havingValue = "true", matchIfMissing = true)
     public Server h2TcpServer() throws SQLException {
         // démarre un serveur TCP H2 sur le port 9092 et autorise les connexions externes
         // La BD est accessible sur jdbc:h2:tcp://localhost:9092/mem:testdb

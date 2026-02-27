@@ -130,6 +130,12 @@
             <artifactId>modelmapper</artifactId>
             <version>3.2.6</version>
         </dependency>
+        <!-- SendGrid pour l'envoi d'emails -->
+        <dependency>
+            <groupId>com.sendgrid</groupId>
+            <artifactId>sendgrid-java</artifactId>
+            <version>4.10.3</version>
+        </dependency>
         <dependency>
             <!-- Pour ModelMapper...  -->
             <groupId>com.google.guava</groupId>

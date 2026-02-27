@@ -207,6 +207,7 @@ class RepositoryCustomMethodsTest {
 
         Commande c1 = new Commande();
         c1.setDispensaire(d);
+        c1.setEnvoyeele(LocalDate.now()); // La requête ne compte que les commandes expédiées
         c1 = commandeRepository.saveAndFlush(c1);
 
         Categorie cat = new Categorie();
@@ -228,6 +229,7 @@ class RepositoryCustomMethodsTest {
 
         Commande c2 = new Commande();
         c2.setDispensaire(d);
+        c2.setEnvoyeele(LocalDate.now()); // La requête ne compte que les commandes expédiées
         c2 = commandeRepository.saveAndFlush(c2);
 
         l2.setCommande(c2);

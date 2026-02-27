@@ -172,11 +172,25 @@ INSERT INTO COMMANDE (NUMERO, SAISIELE, ENVOYEELE, DISPENSAIRE_CODE, PORT, REMIS
 ALTER TABLE Commande ALTER COLUMN numero RESTART WITH 9;
 
 INSERT INTO FOURNISSEUR (ID, NOM, EMAIL) VALUES
-('1', 'PharmaPlus', 'contact@gmail.com'),
-('2', 'MedSupply', 'contact@gmail.com'),
-('3', 'Sénégal Pharma', 'contact@gmail.com'),
-('4', 'HealthPro', 'contact@gmail.com'),
-('5', 'Optimum Santé', 'contact@gmail.com');
+('1', 'PharmaPlus', 'contact@pharmaplus.sn'),
+('2', 'MedSupply', 'contact@medsupply.sn'),
+('3', 'Sénégal Pharma', 'contact@senegalph.sn'),
+('4', 'HealthPro', 'contact@healthpro.sn'),
+('5', 'Optimum Santé', 'contact@optimum.sn');
+ALTER TABLE Fournisseur ALTER COLUMN id RESTART WITH 6;
+
+-- Associations Fournisseur-Catégorie (table de jointure ManyToMany)
+INSERT INTO CATEGORIE_FOURNISSEURS (CATEGORIES_CODE, FOURNISSEURS_ID) VALUES
+(1, 1), (1, 3),  -- Antalgiques fournis par PharmaPlus et Sénégal Pharma
+(2, 1), (2, 2),  -- Anti-inflammatoires fournis par PharmaPlus et MedSupply
+(3, 2), (3, 4),  -- Antibiotiques fournis par MedSupply et HealthPro
+(4, 3), (4, 5),  -- Antihypertenseurs fournis par Sénégal Pharma et Optimum Santé
+(5, 4), (5, 5),  -- Antidiabétiques fournis par HealthPro et Optimum Santé
+(6, 1), (6, 2),  -- Antihistaminiques fournis par PharmaPlus et MedSupply
+(7, 3), (7, 5),  -- Vitamines fournis par Sénégal Pharma et Optimum Santé
+(8, 2), (8, 4),  -- Cardiovasculaires fournis par MedSupply et HealthPro
+(9, 1), (9, 3),  -- Gastro-intestinaux fournis par PharmaPlus et Sénégal Pharma
+(10, 4), (10, 5); -- Respiratoires fournis par HealthPro et Optimum Santé
 
 -- Insertion des lignes de commande
 INSERT INTO LIGNE (COMMANDE_NUMERO, MEDICAMENT_REFERENCE, QUANTITE) VALUES
