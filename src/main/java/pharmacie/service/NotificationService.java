@@ -5,15 +5,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pharmacie.dao.FournisseurRepository;
 import pharmacie.dao.MedicamentRepository;
+import pharmacie.entity.Categorie;
 import pharmacie.entity.Fournisseur;
 import pharmacie.entity.Medicament;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Service de notification pour le réapprovisionnement des médicaments.
- * Lorsqu'un médicament atteint son niveau de réapprovisionnement,
- * ce service envoie un email aux fournisseurs concernés via SendGrid.
+ * Détermine les médicaments dont unitesEnStock < niveauDeReappro et envoie
+ * UN SEUL email récapitulatif par fournisseur, groupé par catégorie, via SendGrid.
  */
 @Slf4j
 @Service
@@ -32,126 +36,144 @@ public class NotificationService {
     }
 
     /**
-     * Vérifie si un médicament a atteint son niveau de réapprovisionnement
-     * et notifie les fournisseurs associés à sa catégorie par email.
+     * Vérifie si un médicament a atteint son niveau de réapprovisionnement (strictement inférieur).
+     * Utilisé après chaque vente/commande pour déclencher une notification ciblée.
      *
      * @param medicament le médicament à vérifier
      */
     public void verifierEtNotifierReappro(Medicament medicament) {
         if (medicament.isIndisponible()) {
-            return; // Pas de notification pour les médicaments indisponibles
-        }
-
-        if (medicament.getUnitesEnStock() <= medicament.getNiveauDeReappro()) {
-            log.warn("⚠️ Médicament '{}' a atteint le niveau de réapprovisionnement. " +
-                    "Stock: {}, Niveau de réappro: {}",
-                    medicament.getNom(),
-                    medicament.getUnitesEnStock(),
-                    medicament.getNiveauDeReappro());
-
-            notifierFournisseurs(medicament);
-        }
-    }
-
-    /**
-     * Notifie tous les fournisseurs associés à la catégorie du médicament
-     * qui a atteint son niveau de réapprovisionnement.
-     *
-     * @param medicament le médicament nécessitant un réapprovisionnement
-     */
-    private void notifierFournisseurs(Medicament medicament) {
-        Integer categorieCode = medicament.getCategorie().getCode();
-        List<Fournisseur> fournisseurs = fournisseurDao.findByCategorieCode(categorieCode);
-
-        if (fournisseurs.isEmpty()) {
-            log.warn("Aucun fournisseur trouvé pour la catégorie '{}' du médicament '{}'",
-                    medicament.getCategorie().getLibelle(), medicament.getNom());
             return;
         }
-
-        String subject = "🔔 Alerte réapprovisionnement - " + medicament.getNom();
-        String body = buildEmailBody(medicament);
-
-        for (Fournisseur fournisseur : fournisseurs) {
-            log.info("Envoi d'une notification de réappro à {} ({}) pour le médicament '{}'",
-                    fournisseur.getNom(), fournisseur.getEmail(), medicament.getNom());
-            emailService.sendEmail(fournisseur.getEmail(), subject, body);
+        if (medicament.getUnitesEnStock() < medicament.getNiveauDeReappro()) {
+            log.warn("Médicament '{}' sous le niveau de réapprovisionnement. Stock: {}, Niveau: {}",
+                    medicament.getNom(), medicament.getUnitesEnStock(), medicament.getNiveauDeReappro());
+            // Déclenche la vérification complète pour envoyer des emails consolidés
+            verifierTousLesMedicaments();
         }
     }
 
     /**
-     * Construit le corps HTML de l'email de notification de réapprovisionnement
-     *
-     * @param medicament le médicament concerné
-     * @return le HTML de l'email
-     */
-    private String buildEmailBody(Medicament medicament) {
-        return """
-            <html>
-            <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2 style="color: #d9534f;">🔔 Alerte de Réapprovisionnement</h2>
-                <p>Bonjour,</p>
-                <p>Le médicament suivant a atteint son niveau de réapprovisionnement et nécessite une nouvelle livraison :</p>
-                <table style="border-collapse: collapse; width: 100%%; max-width: 500px;">
-                    <tr style="background-color: #f5f5f5;">
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Médicament</strong></td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">%s</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Catégorie</strong></td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">%s</td>
-                    </tr>
-                    <tr style="background-color: #f5f5f5;">
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Stock actuel</strong></td>
-                        <td style="padding: 8px; border: 1px solid #ddd; color: #d9534f;">%d unités</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Niveau de réappro</strong></td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">%d unités</td>
-                    </tr>
-                    <tr style="background-color: #f5f5f5;">
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Unités commandées</strong></td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">%d unités</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Prix unitaire</strong></td>
-                        <td style="padding: 8px; border: 1px solid #ddd;">%s €</td>
-                    </tr>
-                </table>
-                <p>Merci de prendre les dispositions nécessaires pour le réapprovisionnement.</p>
-                <p>Cordialement,<br><strong>Pharmacie Centrale</strong></p>
-            </body>
-            </html>
-            """.formatted(
-                medicament.getNom(),
-                medicament.getCategorie().getLibelle(),
-                medicament.getUnitesEnStock(),
-                medicament.getNiveauDeReappro(),
-                medicament.getUnitesCommandees(),
-                medicament.getPrixUnitaire().toString()
-        );
-    }
-
-    /**
-     * Vérifie tous les médicaments et envoie des notifications pour ceux
-     * qui ont atteint leur niveau de réapprovisionnement.
-     * Peut être appelé par un scheduler ou manuellement via l'API.
+     * Vérifie tous les médicaments, puis envoie UN SEUL email consolidé à chaque fournisseur
+     * récapitulant, catégorie par catégorie, tous les médicaments à réapprovisionner
+     * qu'il est susceptible de fournir.
      *
      * @return le nombre de médicaments nécessitant un réapprovisionnement
      */
     @Transactional(readOnly = true)
     public int verifierTousLesMedicaments() {
         log.info("Vérification du stock de tous les médicaments...");
-        List<Medicament> tousLesMedicaments = medicamentDao.findAll();
-        int count = 0;
-        for (Medicament medicament : tousLesMedicaments) {
-            if (!medicament.isIndisponible() &&
-                medicament.getUnitesEnStock() <= medicament.getNiveauDeReappro()) {
-                notifierFournisseurs(medicament);
-                count++;
+
+        // 1. Trouver tous les médicaments dont unitesEnStock < niveauDeReappro (strictement inférieur)
+        List<Medicament> aReapprovisionner = medicamentDao.findAll().stream()
+                .filter(m -> !m.isIndisponible() && m.getUnitesEnStock() < m.getNiveauDeReappro())
+                .collect(Collectors.toList());
+
+        if (aReapprovisionner.isEmpty()) {
+            log.info("Aucun médicament ne nécessite de réapprovisionnement");
+            return 0;
+        }
+        log.info("{} médicament(s) nécessite(nt) un réapprovisionnement", aReapprovisionner.size());
+
+        // 2. Grouper les médicaments à réapprovisionner par catégorie
+        Map<Categorie, List<Medicament>> medParCategorie = aReapprovisionner.stream()
+                .collect(Collectors.groupingBy(Medicament::getCategorie));
+
+        // 3. Pour chaque fournisseur, construire UN email récapitulatif groupé par catégorie
+        List<Fournisseur> tousLesFournisseurs = fournisseurDao.findAll();
+
+        for (Fournisseur fournisseur : tousLesFournisseurs) {
+            // Médicaments que CE fournisseur peut fournir, groupés par catégorie
+            Map<Categorie, List<Medicament>> medicamentsDuFournisseur = new LinkedHashMap<>();
+
+            for (Categorie categorie : fournisseur.getCategories()) {
+                List<Medicament> meds = medParCategorie.get(categorie);
+                if (meds != null && !meds.isEmpty()) {
+                    medicamentsDuFournisseur.put(categorie, meds);
+                }
+            }
+
+            if (!medicamentsDuFournisseur.isEmpty()) {
+                int totalMeds = medicamentsDuFournisseur.values().stream().mapToInt(List::size).sum();
+                log.info("Envoi d'un email récapitulatif à {} ({}) : {} médicament(s) dans {} catégorie(s)",
+                        fournisseur.getNom(), fournisseur.getEmail(),
+                        totalMeds, medicamentsDuFournisseur.size());
+
+                String subject = "Demande de devis de réapprovisionnement - Pharmacie Centrale";
+                String body = buildConsolidatedEmailBody(fournisseur, medicamentsDuFournisseur);
+                emailService.sendEmail(fournisseur.getEmail(), subject, body);
             }
         }
-        log.info("{} médicament(s) nécessite(nt) un réapprovisionnement", count);
-        return count;
+
+        return aReapprovisionner.size();
+    }
+
+    /**
+     * Construit le corps HTML d'un email récapitulatif destiné à UN fournisseur,
+     * listant tous les médicaments à réapprovisionner groupés par catégorie.
+     *
+     * @param fournisseur            le fournisseur destinataire
+     * @param medicamentsParCategorie les médicaments regroupés par catégorie
+     * @return le contenu HTML de l'email
+     */
+    private String buildConsolidatedEmailBody(Fournisseur fournisseur,
+                                               Map<Categorie, List<Medicament>> medicamentsParCategorie) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("""
+            <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #2c3e50;">Demande de devis de réapprovisionnement</h2>
+                <p>Bonjour <strong>%s</strong>,</p>
+                <p>Nous vous contactons afin de solliciter un devis de réapprovisionnement
+                   pour les médicaments suivants, dont le stock est actuellement insuffisant.
+                   Merci de nous transmettre vos disponibilités et tarifs.</p>
+            """.formatted(fournisseur.getNom()));
+
+        for (Map.Entry<Categorie, List<Medicament>> entry : medicamentsParCategorie.entrySet()) {
+            Categorie categorie = entry.getKey();
+            List<Medicament> meds = entry.getValue();
+
+            sb.append("<h3 style=\"color:#2980b9; border-bottom:1px solid #ccc; padding-bottom:4px;\">")
+              .append(categorie.getLibelle())
+              .append("</h3>");
+
+            sb.append("""
+                <table style="border-collapse: collapse; width: 100%; margin-bottom: 16px;">
+                  <thead>
+                    <tr style="background-color:#2980b9; color:#fff;">
+                      <th style="padding:8px; text-align:left;">Médicament</th>
+                      <th style="padding:8px; text-align:right;">Stock actuel</th>
+                      <th style="padding:8px; text-align:right;">Niveau réappro</th>
+                      <th style="padding:8px; text-align:right;">Prix unitaire</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                """);
+
+            boolean alt = false;
+            for (Medicament m : meds) {
+                String bg = alt ? "background-color:#f2f2f2;" : "";
+                sb.append("<tr style=\"%s\">".formatted(bg))
+                  .append("<td style=\"padding:7px; border:1px solid #ddd;\">").append(m.getNom()).append("</td>")
+                  .append("<td style=\"padding:7px; border:1px solid #ddd; text-align:right; color:#c0392b;\">")
+                  .append(m.getUnitesEnStock()).append("</td>")
+                  .append("<td style=\"padding:7px; border:1px solid #ddd; text-align:right;\">")
+                  .append(m.getNiveauDeReappro()).append("</td>")
+                  .append("<td style=\"padding:7px; border:1px solid #ddd; text-align:right;\">")
+                  .append(m.getPrixUnitaire()).append(" €</td>")
+                  .append("</tr>");
+                alt = !alt;
+            }
+            sb.append("</tbody></table>");
+        }
+
+        sb.append("""
+                <p>Nous vous remercions de bien vouloir nous adresser votre devis dans les meilleurs délais.</p>
+                <p>Cordialement,<br><strong>Pharmacie Centrale</strong></p>
+            </body>
+            </html>
+            """);
+
+        return sb.toString();
     }
 }
